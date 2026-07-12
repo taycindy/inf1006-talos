@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TALOS -- Home Security System</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    :root {
+      --bg:#0d1117; --panel:#151b23; --elevated:#1b232d;
+      --border:#263039; --border-active:#3a4a58;
+      --accent:#35d0c8; --accent-dim:rgba(53,208,200,.14);
+      --text:#e6edf3; --muted:#7d8896;
+      --ok:#3fb950; --warn:#e0a83b; --danger:#e5564a;
+      --mono:"JetBrains Mono","Consolas",ui-monospace,monospace;
+    }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--text);
+      font-family:var(--mono); font-size:14px; -webkit-font-smoothing:antialiased; }
+    .app { max-width:560px; margin:0 auto; min-height:100vh; display:flex;
+      flex-direction:column; border-left:1px solid var(--border);
+      border-right:1px solid var(--border); }
+    .titlebar { display:flex; align-items:center; height:56px; padding:0 16px;
+      border-bottom:1px solid var(--border); background:var(--panel); }
+    .mark { color:var(--accent); font-size:16px; margin-right:10px; }
+    .wordmark { font-weight:700; letter-spacing:4px; font-size:16px; }
+    .subtitle { color:var(--muted); font-size:11px; letter-spacing:2px;
+      margin-left:12px; flex:1; }
+    .pill { font-size:11px; letter-spacing:2px; padding:5px 11px; border-radius:3px;
+      border:1px solid var(--border-active); color:var(--muted); }
+    .pill.ARMED    { color:var(--accent); border-color:var(--accent); }
+    .pill.ALERT    { color:var(--warn);   border-color:var(--warn); }
+    .pill.LOCKDOWN { color:var(--danger); border-color:var(--danger); }
+    .body { flex:1; padding:20px 16px; }
+    .group { position:relative; border:1px solid var(--border); border-radius:4px;
+      padding:20px 14px 14px; margin-top:20px; }
+    .group:first-child { margin-top:6px; }
+    .group > .glabel { position:absolute; top:-8px; left:12px; background:var(--bg);
+      padding:0 6px; font-size:10px; letter-spacing:2px; text-transform:uppercase;
+      color:var(--muted); }
+    .devices { display:flex; gap:12px; }
+    .device { flex:1; background:var(--elevated); border:1px solid var(--border);
+      border-radius:3px; padding:12px; }
+    .device .k { font-size:10px; letter-spacing:1px; color:var(--muted);
+      text-transform:uppercase; }
+    .device .v { display:flex; align-items:center; gap:8px; margin-top:8px;
+      font-size:15px; letter-spacing:1px; }
+    .ind { width:10px; height:10px; border-radius:50%; background:#39424c;
+      transition:all .2s; }
+    .ind.on     { background:var(--warn);   box-shadow:0 0 10px 1px var(--warn); }
+    .ind.locked { background:var(--danger); box-shadow:0 0 10px 1px var(--danger); }
+    .row { display:flex; gap:8px; flex-wrap:wrap; }
+    .row + .row { margin-top:8px; }
+    button { flex:1; min-width:88px; padding:11px 8px; cursor:pointer;
+      background:var(--elevated); color:var(--text); border:1px solid var(--border);
+      border-radius:3px; font-family:var(--mono); font-size:12px; letter-spacing:1px;
+      transition:border-color .15s, background .15s; }
+    button:hover  { border-color:var(--border-active); }
+    button:active { background:var(--panel); }
+    button.active { border-color:var(--accent); color:var(--accent); background:var(--accent-dim); }
+    button.active:hover { background:var(--accent-dim); }
+    button.sim { border-style:dashed; color:var(--muted); }
+    button.sim:hover { color:var(--text); border-color:var(--border-active); }
+    #log { list-style:none; margin:0; padding:0; max-height:220px; overflow:auto; }
+    #log li { display:flex; gap:12px; padding:6px 2px;
+      border-bottom:1px solid var(--border); font-size:12px; }
+    #log .t { color:var(--accent); font-variant-numeric:tabular-nums; }
+    .statusbar { display:flex; align-items:center; gap:8px; height:30px;
+      padding:0 14px; border-top:1px solid var(--border); background:var(--panel);
+      font-size:11px; letter-spacing:1px; color:var(--muted); }
+    .statusbar .dot { width:7px; height:7px; border-radius:50%; background:var(--muted); }
+    .statusbar .dot.live { background:var(--ok); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <span class="mark">&#9673;</span>
+    <span class="wordmark">TALOS</span>
+    <span class="subtitle">HOME SECURITY SYSTEM</span>
+    <span id="pill" class="pill DISARMED">DISARMED</span>
+  </div>
+  <div class="body">
+    <div class="group">
+      <span class="glabel">Actuators</span>
+      <div class="devices">
+        <div class="device">
+          <div class="k">Interior LED</div>
+          <div class="v"><span id="led-ind" class="ind"></span><span id="led-val">OFF</span></div>
+        </div>
+        <div class="device">
+          <div class="k">Door lock</div>
+          <div class="v"><span id="door-ind" class="ind"></span><span id="door-val">UNLOCKED</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="group">
+      <span class="glabel">System control</span>
+      <div class="row">
+        <button id="btn-arm" onclick="cmd('arm')">ARM</button>
+        <button onclick="cmd('disarm')">DISARM</button>
+        <button onclick="cmd('reset')">RESET</button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="glabel">Manual override</span>
+      <div class="row">
+        <button id="btn-lock" onclick="cmd('lock')">LOCK</button>
+        <button id="btn-unlock" onclick="cmd('unlock')">UNLOCK</button>
+      </div>
+      <div class="row">
+        <button id="btn-led-on" onclick="cmd('led_on')">LED ON</button>
+        <button id="btn-led-off" onclick="cmd('led_off')">LED OFF</button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="glabel">Sensors</span>
+      <div class="row">
+        <button class="sim" onclick="sim('sound', this)">SOUND</button>
+        <button class="sim" onclick="sim('motion', this)">MOTION</button>
+        <button class="sim" onclick="sim('touch', this)">TOUCH</button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="glabel">Activity log</span>
+      <ul id="log"></ul>
+    </div>
+  </div>
+  <div class="statusbar">
+    <span id="conn-dot" class="dot"></span>
+    <span id="conn-text">connecting...</span>
+  </div>
+</div>
+<script>
+  const pill = document.getElementById('pill');
+  const log = document.getElementById('log');
+  function render(d) {
+    pill.textContent = d.state;
+    pill.className = 'pill ' + d.state;
+    document.getElementById('led-ind').className = 'ind' + (d.led === 'on' ? ' on' : '');
+    document.getElementById('led-val').textContent = (d.led || 'off').toUpperCase();
+    document.getElementById('door-ind').className = 'ind' + (d.door === 'locked' ? ' locked' : '');
+    document.getElementById('door-val').textContent = (d.door || 'unlocked').toUpperCase();
+    const on = (id, yes) => document.getElementById(id).classList.toggle('active', yes);
+    on('btn-led-on',  d.led === 'on');
+    on('btn-led-off', false);
+    on('btn-lock',    d.door === 'locked');
+    on('btn-unlock',  false);
+    on('btn-arm',     d.state !== 'DISARMED');
+  }
+  function addEntry(e) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="t">' + e.ts + '</span><span>' + e.text + '</span>';
+    log.prepend(li);
+  }
+  function cmd(name) { fetch('/cmd/' + name, { method:'POST' }); }
+  function sim(kind, btn) {
+    if (btn) { btn.classList.add('active'); setTimeout(() => btn.classList.remove('active'), 250); }
+    fetch('/sim/' + kind, { method:'POST' });
+  }
+  fetch('/status').then(r => r.json()).then(d => {
+    render(d);
+    d.log.forEach(addEntry);
+    const dot = document.getElementById('conn-dot');
+    const txt = document.getElementById('conn-text');
+    dot.classList.add('live');
+    txt.textContent = d.mqtt ? 'MQTT: broker connected' : 'MQTT: UI-only mode (no broker)';
+  });
+  const socket = io();
+  socket.on('update', d => { render(d); addEntry(d.entry); });
+</script>
+</body>
+</html>

@@ -1,10 +1,14 @@
 """
-controller.py -- pure logic: the DISARMED/ARMED/ALERT/LOCKDOWN
-state machine.
+controller.py -- pure logic: the DISARMED/ARMED/LOCKDOWN state machine.
+
+Flow:
+    owner arms the system  -> ARMED
+    sound OR motion fires  -> LOCKDOWN (LED on + servo locks, intruder blocked)
+    owner disarms (webapp) -> DISARMED (LED off + servo unlocks)
 
 Events come in through two methods:
-    on_sensor("sound"|"motion")   # from the Pis OR the sim buttons
-    command("arm"|"disarm"|...)           # from the web UI
+    on_sensor("sound"|"motion")     # from the Pis OR the sim buttons
+    command("arm"|"disarm"|...)     # from the web UI
 
 Two callbacks:
     on_actuator(led, servo)   # "please turn the LED/servo to this state"
@@ -48,11 +52,10 @@ class Controller:
     # -- automatic transitions (real sensors OR sim buttons) ----------------
     def on_sensor(self, kind):
         with self._lock:
-            if kind == "sound" and self.state == "ARMED":
-                self._set("ALERT", led="on", note="Sound detected -> alert")
-            elif kind == "motion" and self.state in ("ARMED", "ALERT"):
-                self._set("LOCKDOWN", servo="locked",
-                          note="Motion detected -> lockdown")
+            # either sensor is enough: light up AND lock the door
+            if kind in ("sound", "motion") and self.state == "ARMED":
+                self._set("LOCKDOWN", led="on", servo="locked",
+                          note=f"{kind.capitalize()} detected -> lockdown")
 
     # -- manual commands (web UI) -------------------------------------------
     def command(self, cmd):

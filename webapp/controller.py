@@ -3,7 +3,7 @@ controller.py -- pure logic: the DISARMED/ARMED/ALERT/LOCKDOWN
 state machine.
 
 Events come in through two methods:
-    on_sensor("sound"|"motion"|"touch")   # from the Pis OR the sim buttons
+    on_sensor("sound"|"motion")   # from the Pis OR the sim buttons
     command("arm"|"disarm"|...)           # from the web UI
 
 Two callbacks:
@@ -48,10 +48,7 @@ class Controller:
     # -- automatic transitions (real sensors OR sim buttons) ----------------
     def on_sensor(self, kind):
         with self._lock:
-            if kind == "touch":
-                self._set("DISARMED", led="off", servo="unlocked",
-                          note="Touch reset -> disarmed")
-            elif kind == "sound" and self.state == "ARMED":
+            if kind == "sound" and self.state == "ARMED":
                 self._set("ALERT", led="on", note="Sound detected -> alert")
             elif kind == "motion" and self.state in ("ARMED", "ALERT"):
                 self._set("LOCKDOWN", servo="locked",

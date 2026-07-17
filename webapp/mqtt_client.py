@@ -31,7 +31,7 @@ def _on_connect(client, userdata, flags, reason_code, properties):
 
 
 def _on_message(client, userdata, msg):
-    kind = msg.topic.rsplit("/", 1)[-1]        # sound | motion | touch
+    kind = msg.topic.rsplit("/", 1)[-1]        # sound | motion
     try:
         payload = json.loads(msg.payload.decode())
     except (ValueError, UnicodeDecodeError):

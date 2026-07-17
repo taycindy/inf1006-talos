@@ -11,7 +11,6 @@ WEB_PORT = 5000
 # Sensors publish -> controller reacts
 T_SOUND  = "home/sensor/sound"
 T_MOTION = "home/sensor/motion"
-T_TOUCH  = "home/sensor/touch"
 # Controller publishes -> actuators react
 T_LED    = "home/actuator/led"
 T_SERVO  = "home/actuator/servo"

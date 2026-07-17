@@ -1,5 +1,5 @@
 """
-app.py -- tarts the server.
+app.py -- starts the server.
 
     python -m pip install -r ../requirements.txt
     cd webapp && python app.py     # then open http://localhost:5000

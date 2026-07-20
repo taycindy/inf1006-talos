@@ -1,7 +1,7 @@
 """Shared settings for the home security system."""
 
 # Broker Pi address
-BROKER_IP = "192.168.1.6"
+BROKER_IP = "10.67.110.169"
 BROKER_PORT = 1883
 
 # Web server
